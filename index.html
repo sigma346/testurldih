@@ -19,6 +19,24 @@
     <p>Welcome to the official GitHub page for The Daily AI Pickett!</p>
 
     <p>Goon</p>
+
+    <script>
+        async function register() {
+        const email = document.getElementById("email").value
+        const password = document.getElementById("password").value
+
+        const { data, error } = await supabase.auth.signUp({ email, password })
+        if (error) {
+            alert(error.message)
+        } else {
+            alert("Account created — go check email to confirm.")
+        }
+        }
+    </script>
+
+    <input id="email" placeholder="email">
+    <input id="password" type="password" placeholder="password">
+    <button onclick="register()">Sign Up</button>
 </body>
 
 <script src="script.js"></script>
