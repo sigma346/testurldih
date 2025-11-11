@@ -22,7 +22,7 @@
     </div>
     <script>
         async function loadTodayImage() {
-        const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+        const today = new Date().toLocaleDateString("en-CA");
 
         const { data, error } = await db
             .from("today_image")

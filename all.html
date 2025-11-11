@@ -26,7 +26,7 @@
     </div>
     <script>
         async function loadAllImages() {
-            const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+            const today = new Date().toLocaleDateString("en-CA"); 
             const { data, error } = await db
                 .from('today_image')
                 .select('*')
@@ -51,7 +51,7 @@
                 const imageEl = document.createElement('img');
                 imageEl.src = img.image_url;
                 imageEl.alt = `Pickett from ${img.date}`;
-                imageEl.style.width = "250px"; // adjust as needed
+                imageEl.style.width = "200px"; // adjust as needed
                 imageEl.style.margin = "10px";
                 imageEl.style.borderRadius = "10px";
                 container.appendChild(imageEl);
