@@ -14,7 +14,6 @@
 <body>
 
     <h1>Today's AI Pickett</h1>
-
     <div id="image-container">
     <p>Loading...</p>
     </div>
@@ -37,6 +36,7 @@
 
         document.getElementById("image-container").innerHTML = `
             <img src="${data.image_url}" style="max-width: 90vw; max-height: 80vh;" class="pickett-image">
+            <p>AI Pickett for ${today}</p>
         `;
         }
 

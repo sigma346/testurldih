@@ -6,8 +6,7 @@ body {
 }
 
 .pickett-image {
-    width: 60%;
-    height: auto;
+    width: 500px;
     display: block;
     margin: 20px auto;
     border-radius: 10px;
