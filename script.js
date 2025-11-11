@@ -3,7 +3,7 @@ async function register() {
     const email = document.getElementById("email").value
     const password = document.getElementById("password").value
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await db.auth.signUp({
         email: email,
         password: password,
         options: {
@@ -18,7 +18,7 @@ async function register() {
     } else {
         alert("Account created — check your email to verify.")
 
-        await supabase.from("users").insert({
+        await db.from("users").insert({
             username: username,
             email: email
         });
@@ -30,7 +30,7 @@ async function login() {
     const email = document.getElementById("email").value
     const password = document.getElementById("password").value
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await db.auth.signInWithPassword({ email, password })
     if (error) {
         alert(error.message)
     } else {
