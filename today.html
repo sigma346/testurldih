@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Today's Image</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabase = supabase.createClient(
+      "https://zdtpcfxzncehhnvmglsj.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkdHBjZnh6bmNlaGhudm1nbHNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4MzcwMDYsImV4cCI6MjA3ODQxMzAwNn0.vlwKNgq0Gqyg7e747O7s3KCVw2J9bZQfS5zzW78X6RY"
+    );
+  </script>
+</head>
+<body>
+
+<h1>Today's AI Pickett</h1>
+
+<div id="image-container">
+  <p>Loading...</p>
+</div>
+
+<script>
+async function loadTodayImage() {
+  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+  const { data, error } = await supabase
+    .from("today_image")
+    .select("image_url")
+    .eq("date", today)
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    document.getElementById("image-container").innerHTML = "<p>No image uploaded for today yet.</p>";
+    return;
+  }
+
+  document.getElementById("image-container").innerHTML = `
+    <img src="${data.image_url}" style="max-width: 90vw; max-height: 80vh;">
+  `;
+}
+
+loadTodayImage();
+</script>
+
+</body>
+</html>
