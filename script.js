@@ -26,6 +26,30 @@ async function register() {
 }
 
 
+// toggle emote picker visibility
+const emoteBtn = document.getElementById("emote-btn");
+const emotePicker = document.getElementById("emote-picker");
+
+if (emoteBtn) {
+  emoteBtn.addEventListener("click", () => {
+    emotePicker.classList.toggle("hidden");
+  });
+}
+
+// send emote to chat
+async function sendEmote(emoteUrl) {
+  const username = document.getElementById("chat-username").value.trim() || "Anonymous";
+
+  const { error } = await db
+    .from("chat_messages")
+    .insert([{ username: username, message: "", emote_url: emoteUrl }]);
+
+  if (error) console.error("Error sending emote:", error);
+
+  // hide picker after selection
+  emotePicker.classList.add("hidden");
+}
+
 async function login() {
     const email = document.getElementById("email").value
     const password = document.getElementById("password").value
@@ -58,7 +82,7 @@ function formatTime(timestamp) {
   return `(${hours}:${minutes})`;
 }
 
-function addMessage(username, text, created_at) {
+function addMessage(username, text, created_at, emote_url = null) {
   const messagesDiv = document.getElementById("messages");
 
   const msgDiv = document.createElement("div");
@@ -79,13 +103,23 @@ function addMessage(username, text, created_at) {
   timeSpan.classList.add("chat-timestamp");
   timeSpan.textContent = formatTime(created_at);
 
-  // assemble message
   msgDiv.appendChild(userSpan);
-  msgDiv.appendChild(textSpan);
-  msgDiv.appendChild(timeSpan);
 
+  if (emote_url) {
+    const emoteImg = document.createElement("img");
+    emoteImg.src = emote_url;
+    emoteImg.classList.add("chat-emote");
+    msgDiv.appendChild(emoteImg);
+  } else {
+    const textSpan = document.createElement("span");
+    textSpan.classList.add("chat-text");
+    textSpan.textContent = `: ${text}`;
+    msgDiv.appendChild(textSpan);
+  }
+
+  msgDiv.appendChild(timeSpan);
   messagesDiv.appendChild(msgDiv);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight; // auto scroll
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
 
@@ -106,6 +140,7 @@ async function sendMessage() {
 }
 
 // 🔄 Load old messages
+// load existing messages (supports emotes)
 async function loadMessages() {
   const { data, error } = await db
     .from("chat_messages")
@@ -117,22 +152,16 @@ async function loadMessages() {
     return;
   }
 
-  const messagesDiv = document.getElementById("messages");
-  messagesDiv.innerHTML = "";
-
-  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at));
+  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at, msg.emote_url));
 }
 
 // ⚡ Real-time message updates (no refresh)
+// update real-time listener to include emote_url
 db.channel("chat")
-  .on(
-    "postgres_changes",
-    { event: "INSERT", schema: "public", table: "chat_messages" },
-    (payload) => {
-      const msg = payload.new;
-      addMessage(msg.username, msg.message, msg.created_at);
-    }
-  )
+  .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+    const msg = payload.new;
+    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url);
+  })
   .subscribe();
 
 document.addEventListener("DOMContentLoaded", loadMessages);

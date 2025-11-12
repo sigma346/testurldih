@@ -42,13 +42,25 @@
     </div>
 
 
-    <div class="chat-box">
-        <div id="messages" class="messages"></div>
+<div class="chat-box">
+  <div id="messages" class="messages"></div>
 
-        <input id="chat-username" placeholder="username">
-        <input id="chat-input" placeholder="type message">
-        <button onclick="sendMessage()">Send</button>
-    </div><br><br>
+  <div class="chat-input-area">
+    <input id="chat-username" placeholder="username">
+    <input id="chat-input" placeholder="type message">
+    <button onclick="sendMessage()">Send</button>
+    <button id="emote-btn">😀</button>
+  </div>
+
+  <!-- Emote selector -->
+  <div id="emote-picker" class="emote-picker hidden">
+    <img class="emote-img" src="media/hehehe.gif" alt="😂" onclick="sendEmote('media/hehehe.gif')">
+    <img class="emote-img" src="media/pig.gif" alt="🐷" onclick="sendEmote('media/pig.gif')">
+    <img class="emote-img" src="media/cry.jpeg" alt="😭" onclick="sendEmote('media/cry.jpeg')">
+    <img class="emote-img" src="media/tuff.gif" alt="🌹" onclick="sendEmote('media/tuff.gif')">
+  </div>
+</div>
+<br><br><br>
 
 <div id="footer"></div>
 </body>
