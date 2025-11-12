@@ -126,3 +126,25 @@ button {
     float: right;
     border-left: #9c9c9c 1px solid;
 }
+
+
+/* Chat Formatting */
+
+.chat-message {
+  margin: 5px 0;
+}
+
+.chat-username {
+  font-weight: bold;
+  color: #4fb446; /* bright green */
+}
+
+.chat-text {
+  color: #222; /* normal text */
+}
+
+.chat-timestamp {
+  font-style: italic;
+  color: #999; /* grey timestamp */
+  margin-left: 5px;
+}

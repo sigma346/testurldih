@@ -46,48 +46,93 @@ async function loadLayout() {
     await (await fetch("components/footer.html")).text();
 }
 
+
+
 document.addEventListener("DOMContentLoaded", loadLayout);
 
-// listen for new messages (realtime)
-db.channel('chat')
-  .on(
-    'postgres_changes',
-    { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-    (payload) => {
-      const msg = payload.new;
-      addMessage(msg.username, msg.message);
-    }
-  )
-  .subscribe();
+// 🕒 Format time as (HH:MM)
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `(${hours}:${minutes})`;
+}
 
+function addMessage(username, text, created_at) {
+  const messagesDiv = document.getElementById("messages");
+
+  const msgDiv = document.createElement("div");
+  msgDiv.classList.add("chat-message");
+
+  // username element
+  const userSpan = document.createElement("span");
+  userSpan.classList.add("chat-username");
+  userSpan.textContent = `[${username}]`;
+
+  // message text
+  const textSpan = document.createElement("span");
+  textSpan.classList.add("chat-text");
+  textSpan.textContent = `  ${text} `;
+
+  // timestamp element
+  const timeSpan = document.createElement("span");
+  timeSpan.classList.add("chat-timestamp");
+  timeSpan.textContent = formatTime(created_at);
+
+  // assemble message
+  msgDiv.appendChild(userSpan);
+  msgDiv.appendChild(textSpan);
+  msgDiv.appendChild(timeSpan);
+
+  messagesDiv.appendChild(msgDiv);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight; // auto scroll
+}
+
+
+// 💬 Send message
 async function sendMessage() {
-  const username = document.getElementById("chat-username").value || "Anonymous";
-  const text = document.getElementById("chat-input").value;
-  if (!text.trim()) return;
+  const username =
+    document.getElementById("chat-username").value.trim() || "Anonymous";
+  const text = document.getElementById("chat-input").value.trim();
+  if (!text) return;
 
-  await db.from("chat_messages").insert([{ username, message: text }]);
+  const { error } = await db
+    .from("chat_messages")
+    .insert([{ username: username, message: text }]);
+
+  if (error) console.error("Error sending message:", error);
 
   document.getElementById("chat-input").value = "";
 }
 
-function addMessage(username, text) {
-  const messagesDiv = document.getElementById("messages");
-
-  const el = document.createElement("div");
-  el.textContent = `[${username}] ${text}`;
-
-  messagesDiv.appendChild(el);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight; // auto scroll
-}
-
+// 🔄 Load old messages
 async function loadMessages() {
-  const { data } = await db
+  const { data, error } = await db
     .from("chat_messages")
     .select("*")
     .order("created_at", { ascending: true });
 
-  data.forEach(msg => addMessage(msg.username, msg.message));
+  if (error) {
+    console.error("Error loading messages:", error);
+    return;
+  }
+
+  const messagesDiv = document.getElementById("messages");
+  messagesDiv.innerHTML = "";
+
+  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at));
 }
 
-document.addEventListener("DOMContentLoaded", loadMessages);
+// ⚡ Real-time message updates (no refresh)
+db.channel("chat")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "chat_messages" },
+    (payload) => {
+      const msg = payload.new;
+      addMessage(msg.username, msg.message, msg.created_at);
+    }
+  )
+  .subscribe();
 
+document.addEventListener("DOMContentLoaded", loadMessages);
