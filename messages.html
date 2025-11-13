@@ -3,38 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Messages</title>
     <link rel="stylesheet" href="stylesheet.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
 </head>
 <body>
     <div id="navbar"></div>
 
 
-
-    <div class="chat-box">
-        <div id="messages" class="messages"></div>
-
-        <div class="chat-input-area">
-            <input id="chat-username" placeholder="username">
-            <input id="chat-input" placeholder="type message">
-            <button onclick="sendMessage()">Send</button>
-            <label for="color">Colour:</label>
-            <input type="color" id="color" value="#000000">
+    <div class="flex">
+        <div class="sidebar">
+            <div class="circle">1</div>
+            <div class="circle">2</div>
+            <div class="circle">3</div>
+            <div class="circle">4</div>
+            <div class="circle">5</div>
         </div>
 
-        <!-- Emote selector -->
-        <div id="emote-picker" class="emote-picker hidden">
-            <img class="emote-img" src="media/hehehe.gif" alt="😂" onclick="sendEmote('media/hehehe.gif')">
-            <img class="emote-img" src="media/pig.gif" alt="🐷" onclick="sendEmote('media/pig.gif')">
-            <img class="emote-img" src="media/cry.jpeg" alt="😭" onclick="sendEmote('media/cry.jpeg')">
-            <img class="emote-img" src="media/tuff.gif" alt="🌹" onclick="sendEmote('media/tuff.gif')">
-            <img class="emote-img" src="media/67-clash-royale.gif" alt="67" onclick="sendEmote('media/67-clash-royale.gif')">
-            <img class="emote-img" src="media/hog.png" alt="hog" onclick="sendEmote('media/hog.png')">
+        <div class="chat-container">
+            <div class="chat-box">
+                <div class="chat-header">Chat Room #1: Private</div>
+                <div class="chat-window">
+                    <div id="messages" class="messages"></div>
+                </div>
+
+                <div class="chat-input-area">
+                    <input id="chat-username" placeholder="username">
+                    <input id="chat-input" placeholder="type message">
+                    <button onclick="sendMessage()">Send</button>
+                    <button onclick="toggleEmotePicker()">Emotes</button>
+                    <input type="color" id="color" value="#000000">
+                </div>
+
+                <!-- Emote selector -->
+                <div id="emote-picker" class="emote-picker hidden">
+                    <img class="emote-img" src="media/hehehe.gif" alt="😂" onclick="sendEmote('media/hehehe.gif')">
+                    <img class="emote-img" src="media/pig.gif" alt="🐷" onclick="sendEmote('media/pig.gif')">
+                    <img class="emote-img" src="media/cry.jpeg" alt="😭" onclick="sendEmote('media/cry.jpeg')">
+                    <img class="emote-img" src="media/tuff.gif" alt="🌹" onclick="sendEmote('media/tuff.gif')">
+                    <img class="emote-img" src="media/67-clash-royale.gif" alt="67" onclick="sendEmote('media/67-clash-royale.gif')">
+                    <img class="emote-img" src="media/hog.png" alt="hog" onclick="sendEmote('media/hog.png')">
+                    <img class="emote-img" src="media/kys.gif" alt="kys" onclick="sendEmote('media/kys.gif')">
+                    <img class="emote-img" src="media/goblingiant.gif" alt="👺" onclick="sendEmote('media/goblingiant.gif')">
+                    <img class="emote-img" src="media/bowler.gif" alt="🍬" onclick="sendEmote('media/bowler.gif')">
+                    <img class="emote-img" src="media/sybau-ts.gif" alt="sybau" onclick="sendEmote('media/sybau-ts.gif')">
+                </div>
+            </div>
+        </div>
+
+        <div class="online-panel">
+            <h3>Online</h3>
+            <div class="user"><div class="status"></div>Username</div>
+            <div class="user"><div class="status"></div>Username</div>
         </div>
     </div>
-    <br><br><br>
 
     <div id="footer"></div>
 </body>

@@ -99,8 +99,13 @@ async function login() {
   }
 
   // After login, fetch user profile and apply username/color
-  await applyProfileToUI();
+  applyProfileToUI();
   showAlert("Logged in.");
+
+  // await loadNavbarAuth(); // update navbar buttons
+
+  // redirect to messages page
+  window.location.href = "index.html";
 }
 
 // ---------- Logout ----------
@@ -141,31 +146,6 @@ async function applyProfileToUI() {
   }
 }
 
-// ---------- On auth state change, ensure profile exists ----------
-
-// db.auth.onAuthStateChange(async (event, session) => {
-//   if (event === "SIGNED_IN" && session?.user) {
-//     const { id, email, user_metadata } = session.user;
-
-//     const { data: existing } = await db
-//       .from("users")
-//       .select("id")
-//       .eq("id", id)
-//       .limit(1);
-
-//     if (!existing?.length) {
-//       await db.from("users").insert([{
-//         id,
-//         email,
-//         username: user_metadata?.preferred_username || `user_${id.slice(0, 6)}`,
-//         color: "#4fb446"
-//       }]);
-//     }
-
-//     console.log("✅ User verified and profile created");
-//   }
-// });
-
 // ---------- Load navbar auth links ----------
 
 async function loadNavbarAuth() {
@@ -174,18 +154,20 @@ async function loadNavbarAuth() {
 
   // Get current session
   const { data: { session }, error } = await db.auth.getSession();
-  if (!session) {
-    document.getElementById("unlogged").style.display = "block";
-    document.getElementById("chat-username").style.display = "inline-block";
-    document.getElementById("color").style.display = "inline-block";
-  } else {
-    document.getElementById("unlogged").style.display = "none";
-    document.getElementById("chat-username").style.display = "none";
-    document.getElementById("color").style.display = "none";
-  }
+    const unloggedEl = document.getElementById("unlogged");
+    const chatUsernameEl = document.getElementById("chat-username");
+    const colorEl = document.getElementById("color");
+      if (unloggedEl) {
+        unloggedEl.style.display = session ? "none" : "block";
+      }
 
+      if (chatUsernameEl) {
+        chatUsernameEl.style.display = !session ? "inline-block" : "none";
+      }
 
-
+      if (colorEl) {
+        colorEl.style.display = !session ? "inline-block" : "none";
+      }
 
   if (error) {
     console.error("Auth session error:", error);
@@ -230,6 +212,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // send emote to chat
 async function sendEmote(emoteUrl) {
 
+  const emotePicker = document.getElementById("emote-picker");
   if (!window.currentUser) {
     alert("Please log in to send emotes.");
     return;
@@ -243,20 +226,19 @@ async function sendEmote(emoteUrl) {
   if (error) console.error("Error sending emote:", error);
 
   // hide picker after selection
-  emotePicker.classList.add("hidden");
+  if (emotePicker) {
+    emotePicker.classList.add("hidden");
+  }
 }
 
-async function login() {
-    const email = document.getElementById("email").value
-    const password = document.getElementById("password").value
-
-    const { data, error } = await db.auth.signInWithPassword({ email, password })
-    if (error) {
-        alert(error.message)
-    } else {
-        alert("Logged in. You’re him.")
-    }
+toggleEmotePicker = () => {
+  const emotePicker = document.getElementById("emote-picker");
+  if (emotePicker) {
+    emotePicker.classList.toggle("hidden");
+  }
 }
+
+// ---------- Load navbar and footer ----------
 
 async function loadLayout() {
 
@@ -266,20 +248,22 @@ async function loadLayout() {
   document.getElementById("navbar").innerHTML =
     await (await fetch("./components/navbar.html")).text();
 
-  document.getElementById("footer").innerHTML =
-    await (await fetch("./components/footer.html")).text();
+  if (document.getElementById("footer")) {
+    document.getElementById("footer").innerHTML =
+      await (await fetch("./components/footer.html")).text();
+  }
 
-  loadNavbarAuth(); // <- Make sure this is called AFTER navbar is loaded
 
-  // show unlogged id if not logged in
+  await loadNavbarAuth(); // <- Make sure this is called AFTER navbar is loaded
+
+  // only toggle unlogged if element exists (some pages won’t have it)
   const { data: { session } } = await db.auth.getSession();
-  if (!session) {
-    document.getElementById("unlogged").style.display = "block";
-  } else {
-    document.getElementById("unlogged").style.display = "none";
+
+  const unloggedEl = document.getElementById("unlogged");
+  if (unloggedEl) {
+    unloggedEl.style.display = session ? "none" : "block";
   }
 }
-
 
 
 document.addEventListener("DOMContentLoaded", loadLayout);
@@ -303,6 +287,10 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   const msgDiv = document.createElement("div");
   msgDiv.classList.add("chat-message");
 
+    // 🧢 header: username + role
+  const headerDiv = document.createElement("div");
+  headerDiv.classList.add("chat-header");
+
   // username element
   const userSpan = document.createElement("span");
   userSpan.classList.add("chat-username");
@@ -319,30 +307,39 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   // message text
   const textSpan = document.createElement("span");
   textSpan.classList.add("chat-text");
-  textSpan.textContent = `  ${text} `;
+  textSpan.textContent = `${text} `;
 
-  // timestamp element
-  const timeSpan = document.createElement("span");
-  timeSpan.classList.add("chat-timestamp");
-  timeSpan.textContent = formatTime(created_at);
 
-  msgDiv.appendChild(userSpan);
+
+  headerDiv.appendChild(userSpan);
+  if (role) headerDiv.appendChild(roleSpan);
+
+  const bodyDiv = document.createElement("div");
+  bodyDiv.classList.add("chat-body");
 
   if (emote_url) {
     const emoteImg = document.createElement("img");
     emoteImg.src = emote_url;
     emoteImg.classList.add("chat-emote");
-    msgDiv.appendChild(emoteImg);
+    bodyDiv.appendChild(emoteImg);
   } else {
     const textSpan = document.createElement("span");
     textSpan.classList.add("chat-text");
-    textSpan.textContent = `: ${text}`;
-    msgDiv.appendChild(textSpan);
+    textSpan.textContent = text;
+    bodyDiv.appendChild(textSpan);
   }
 
-  msgDiv.appendChild(timeSpan);
-  messagesDiv.appendChild(msgDiv);
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    // timestamp
+    const timeSpan = document.createElement("span");
+    timeSpan.classList.add("chat-timestamp");
+    timeSpan.textContent = formatTime(created_at);
+    bodyDiv.appendChild(timeSpan);
+
+    msgDiv.appendChild(headerDiv);
+    msgDiv.appendChild(bodyDiv);
+
+    messagesDiv.appendChild(msgDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
 
