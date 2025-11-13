@@ -278,7 +278,7 @@ button:active {
 }
 
 .messages {
-    height: 60vh;
+    height: 50vh;
     overflow-y: scroll;
     border: 1px solid #ddd;
     padding: 8px;
