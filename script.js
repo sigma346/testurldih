@@ -264,10 +264,10 @@ async function loadLayout() {
   // load navbar and footer
 
   document.getElementById("navbar").innerHTML =
-    await (await fetch("/components/navbar.html")).text();
+    await (await fetch("./components/navbar.html")).text();
 
   document.getElementById("footer").innerHTML =
-    await (await fetch("/components/footer.html")).text();
+    await (await fetch("./components/footer.html")).text();
 
   loadNavbarAuth(); // <- Make sure this is called AFTER navbar is loaded
 
