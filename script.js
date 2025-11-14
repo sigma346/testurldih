@@ -201,7 +201,7 @@ async function loadNavbarAuth() {
     const color = profile?.color || "#000";
 
     authSpan.innerHTML = `
-      <a href="/account.html" style="margin-right:10px; font-weight:bold;">${username}</a>
+      <a href="account.html" style="margin-right:10px; font-weight:bold;">${username}</a>
       <a onclick="logout(); loadNavbarAuth()">Logout</a>
     `;
   } else {
@@ -251,8 +251,10 @@ async function loadLayout() {
   
   // load navbar and footer
 
-  document.getElementById("navbar").innerHTML =
-    await (await fetch("./components/navbar.html")).text();
+  if (!document.getElementById("navbar")) {
+    document.getElementById("navbar").innerHTML =
+      await (await fetch("./components/navbar.html")).text();
+  }
 
   if (document.getElementById("footer")) {
     document.getElementById("footer").innerHTML =
@@ -292,7 +294,7 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
   // Profile Picture
   const pfp = document.createElement("img");
   pfp.classList.add("chat-pfp");
-  pfp.src = profile_pic || "/media/pfp.png";
+  pfp.src = profile_pic || "media/pfp.png";
   wrapper.appendChild(pfp);
 
   // Main content
