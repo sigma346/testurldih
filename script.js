@@ -460,59 +460,55 @@ db.channel("chat")
 // ---------- Profile Image Upload ----------
 
 async function uploadProfilePicture() {
-    if (!window.currentUser) {
-        alert("You need to log in first.");
-        return;
-    }
+  const file = document.getElementById("profile-pic-file").files[0];
+  if (!file) return alert("select a pic lil bro");
 
-    const fileInput = document.getElementById("profile-pic-file");
-    const file = fileInput.files[0];
+  const { data: userData } = await db.auth.getUser();
+  const user = userData?.user;
+  if (!user) return alert("u gotta log in fam");
 
-    if (!file) {
-        alert("Pick an image first.");
-        return;
-    }
+  const fileName = `${user.id}_${Date.now()}.${file.name.split(".").pop()}`;
 
-    const userId = window.currentUser.id;
+  // Upload to bucket
 
-    // unique filename
-    const fileName = `${userId}_${Date.now()}.${file.name.split('.').pop()}`;
+  const { data: uploadData, error: uploadErr } = await db
+    .storage
+    .from("profile_pics")
+    .upload(fileName, file, { upsert: true });
 
-    // upload image
-    const { data: uploadData, error: uploadErr } = await db.storage
-        .from("profile-pics")
-        .upload(fileName, file);
+  if (uploadErr) {
+    console.error(uploadErr);
+    alert("Upload failed.");
+    return;
+  }
 
-    if (uploadErr) {
-        console.error(uploadErr);
-        alert("Upload failed.");
-        return;
-    }
+  // Get full public URL
+  const { data: publicUrlData } = db
+    .storage
+    .from("profile_pics")
+    .getPublicUrl(fileName);
 
-    // get public URL
-    const { data: urlData } = db.storage
-        .from("profile-pics")
-        .getPublicUrl(fileName);
+  const publicUrl = publicUrlData.publicUrl;
 
-    const imageUrl = urlData.publicUrl;
 
-    // save to user row
-    const { error: updateErr } = await db
-        .from("users")
-        .update({ pfp: imageUrl })
-        .eq("id", userId);
 
-    if (updateErr) {
-        console.error(updateErr);
-        alert("Could not update profile.");
-        return;
-    }
+  // Update DB row
+  const { error: updateErr } = await db
+    .from("users")
+    .update({ profile_image: publicUrl })
+    .eq("id", user.id);
 
-    // update session data
-    window.currentUser.pfp = imageUrl;
+  if (updateErr) {
+    console.error(updateErr);
+    alert("Failed to update profile.");
+    return;
+  }
 
-    alert("Profile picture updated!");
+  alert("Profile picture updated!");
+
+
 }
+
 
 
 function getPublicProfileImage(userId, ext = "png") {
