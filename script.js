@@ -251,10 +251,9 @@ async function loadLayout() {
   
   // load navbar and footer
 
-  if (!document.getElementById("navbar")) {
-    document.getElementById("navbar").innerHTML =
-      await (await fetch("./components/navbar.html")).text();
-  }
+  document.getElementById("navbar").innerHTML =
+    await (await fetch("./components/navbar.html")).text();
+
 
   if (document.getElementById("footer")) {
     document.getElementById("footer").innerHTML =
