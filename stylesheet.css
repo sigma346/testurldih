@@ -17,6 +17,8 @@ body {
     color: #333;
 
     height: 100vh;
+
+    text-wrap: wrap;
 }
 
 .flex {
@@ -205,6 +207,8 @@ button:active {
   font-size: 20px;
 }
 
+
+
 .chat-window {
   flex: 1;
   overflow-y: auto;
@@ -213,30 +217,43 @@ button:active {
 
 .chat-message {
   display: flex;
-  flex-direction: column;
   align-items: flex-start;
   margin-bottom: 10px;
+  overflow-x: hidden;
+  gap: 8px;
 }
 
-.message .avatar {
-  width: 20px;
-  height: 20px;
+.chat-pfp {
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  margin-right: 10px;
+  object-fit: cover;
 }
 
 .message .content {
   background-color: #e3e3e3;
   padding: 8px 12px;
   border-radius: 6px;
+  overflow-x: hidden;
   max-width: 70%;
+}
+
+.chat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: bold;
 }
 
 .chat-body {
   display: flex;
-  align-items: center;
   gap: 8px;
-  margin-left: 10px;
+  align-items: center;
 }
 
 .chat-username {
@@ -244,7 +261,7 @@ button:active {
 }
 
 .chat-text {
-    color: #222; /* normal text */
+  white-space: pre-wrap;
 }
 
 .chat-timestamp {
@@ -269,17 +286,21 @@ button:active {
 
 
 .chat-box {
-    width: 80%;
+    overflow-x: hidden;
+    width: 90%;
     margin: 40px auto;
     background: #fff;
     padding: 15px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  
 }
 
 .messages {
     height: 50vh;
     overflow-y: scroll;
+    max-width: 100%;
+    overflow-x: hidden;
     border: 1px solid #ddd;
     padding: 8px;
     margin-bottom: 10px;

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customize Account</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@>2"></script>
+    <script src="script.js" defer></script>
+    <link rel="stylesheet" href="stylesheet.css">
+</head>
+<body>
+    <div id="navbar"></div><br><br><br><br>
+
+    <div class="content-section">
+        <h1>Account Settings</h1>
+        <p>Account customization features!</p>
+
+        <!-- you have to log in -->
+        <h3>Change Name Colour</h3>
+        <input id="color" type="color" value="#000000">
+        <button onclick="updateNameColor()">Update Colour</button>
+
+        <h3>Change Password</h3>
+        <input id="new-password" type="password" placeholder="New Password">
+        <button onclick="updatePassword()">Update Password</button>
+
+        <h3>Change Profile Picture</h3>
+        <input id="profile-pic-file" type="file" accept="image/*">
+        <button onclick="uploadProfilePicture()">Upload Profile Picture</button>
+
+    </div>
+
+    <!-- <div id="footer"></div> -->
+
+</body>
+</html>

@@ -120,31 +120,49 @@ async function logout() {
   
 }
 
-// ---------- Apply profile to UI ----------
 async function applyProfileToUI() {
   const { data: userData } = await db.auth.getUser();
   const user = userData?.user;
   if (!user) return;
 
-  // fetch profile row
   const { data: profile, error } = await db
     .from("users")
     .select("*")
     .eq("id", user.id)
     .single();
 
-  if (error) {
-    console.warn("couldn't fetch profile:", error);
+  if (error || !profile) {
+    console.warn("No profile found:", error);
     return;
   }
 
-  // populate chat username and color
-  if (profile) {
+  // username
+  if (qs("chat-username")) {
     qs("chat-username").value = profile.username;
-    // store user color somewhere; we will use it when sending messages
-    window.currentUser = { id: profile.id, username: profile.username, color: profile.color, level: profile.level  };
   }
+
+  // profile picture
+  const pfp = document.getElementById("chat-pfp");
+  if (pfp && profile.profile_image) {
+    const { data } = db.storage
+      .from("profile_pics")
+      .getPublicUrl(profile.profile_image);
+
+    if (data?.publicUrl) {
+      pfp.src = data.publicUrl;
+    }
+  }
+
+  // global user object
+  window.currentUser = {
+    id: profile.id,
+    username: profile.username,
+    color: profile.color,
+    level: profile.level,
+    profile_image: profile.profile_image
+  };
 }
+
 
 // ---------- Load navbar auth links ----------
 
@@ -183,7 +201,7 @@ async function loadNavbarAuth() {
     const color = profile?.color || "#000";
 
     authSpan.innerHTML = `
-      <a style="margin-right:10px; font-weight:bold;">${username}</a>
+      <a href="/account.html" style="margin-right:10px; font-weight:bold;">${username}</a>
       <a onclick="logout(); loadNavbarAuth()">Logout</a>
     `;
   } else {
@@ -194,18 +212,6 @@ async function loadNavbarAuth() {
     `;
   }
 }
-
-// Call this when page loads
-document.addEventListener("DOMContentLoaded", loadNavbarAuth);
-
-
-// ---------- When page loads, try to apply profile if already logged in ----------
-document.addEventListener("DOMContentLoaded", async () => {
-  await applyProfileToUI();
-});
-
-
-
 
 
 
@@ -266,8 +272,6 @@ async function loadLayout() {
 }
 
 
-document.addEventListener("DOMContentLoaded", loadLayout);
-
 // 🕒 Format time as (HH:MM)
 function formatTime(timestamp) {
   const date = new Date(timestamp);
@@ -276,71 +280,72 @@ function formatTime(timestamp) {
   return `(${hours}:${minutes})`;
 }
 
-function addMessage(username, text, created_at, emote_url = null, color = "#000000ff", role="") {
-  // only logged in users can see messages
-  //tell them they need to log in
+function addMessage(username, text, created_at, emote_url = null, color = "#000000ff", role="", profile_pic=null) {
+  // only do this if messages div exists
+  if (!document.getElementById("messages")) return;
   
-
-
   const messagesDiv = document.getElementById("messages");
 
-  const msgDiv = document.createElement("div");
-  msgDiv.classList.add("chat-message");
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("chat-message");
 
-    // 🧢 header: username + role
-  const headerDiv = document.createElement("div");
-  headerDiv.classList.add("chat-header");
+  // Profile Picture
+  const pfp = document.createElement("img");
+  pfp.classList.add("chat-pfp");
+  pfp.src = profile_pic || "/media/pfp.png";
+  wrapper.appendChild(pfp);
 
-  // username element
+  // Main content
+  const content = document.createElement("div");
+  content.classList.add("chat-content");
+
+  // Header (username + role)
+  const header = document.createElement("div");
+  header.classList.add("chat-header");
+
   const userSpan = document.createElement("span");
   userSpan.classList.add("chat-username");
   userSpan.textContent = `[${username}]`;
   userSpan.style.color = color;
+  header.appendChild(userSpan);
 
-  //role element
-  const roleSpan = document.createElement("span");
-  roleSpan.classList.add("chat-role");
-  roleSpan.textContent = `${role}`;
-  roleSpan.style.color = "#ff4500";
-  userSpan.appendChild(roleSpan);
+  if (role) {
+    const roleSpan = document.createElement("span");
+    roleSpan.classList.add("chat-role");
+    roleSpan.textContent = role;
+    header.appendChild(roleSpan);
+  }
 
-  // message text
-  const textSpan = document.createElement("span");
-  textSpan.classList.add("chat-text");
-  textSpan.textContent = `${text} `;
-
-
-
-  headerDiv.appendChild(userSpan);
-  if (role) headerDiv.appendChild(roleSpan);
-
-  const bodyDiv = document.createElement("div");
-  bodyDiv.classList.add("chat-body");
+  // Body (text/emote + timestamp)
+  const body = document.createElement("div");
+  body.classList.add("chat-body");
 
   if (emote_url) {
     const emoteImg = document.createElement("img");
     emoteImg.src = emote_url;
     emoteImg.classList.add("chat-emote");
-    bodyDiv.appendChild(emoteImg);
+    body.appendChild(emoteImg);
   } else {
     const textSpan = document.createElement("span");
     textSpan.classList.add("chat-text");
     textSpan.textContent = text;
-    bodyDiv.appendChild(textSpan);
+    body.appendChild(textSpan);
   }
 
-    // timestamp
-    const timeSpan = document.createElement("span");
-    timeSpan.classList.add("chat-timestamp");
-    timeSpan.textContent = formatTime(created_at);
-    bodyDiv.appendChild(timeSpan);
+  const timeSpan = document.createElement("span");
+  timeSpan.classList.add("chat-timestamp");
+  timeSpan.textContent = formatTime(created_at);
+  body.appendChild(timeSpan);
 
-    msgDiv.appendChild(headerDiv);
-    msgDiv.appendChild(bodyDiv);
+  // Build final structure
+  content.appendChild(header);
+  content.appendChild(body);
+  wrapper.appendChild(content);
+  messagesDiv.appendChild(wrapper);
 
-    messagesDiv.appendChild(msgDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
+
 
 
 // 💬 Send message
@@ -362,28 +367,36 @@ async function sendMessage() {
   const color = window.currentUser?.color || "#000000ff";
 
   const role = levelToRole(level);
+  const profile_image = window.currentUser?.profile_image || '/media/pfp.png';
 
   const { error } = await db
     .from("chat_messages")
-    .insert([{ username: username, message: text, color, role: role }]);
+    .insert([{
+      username,
+      user_id: window.currentUser.id, // optional, good to store
+      message: text,
+      color,
+      role,
+      profile_image // store the sender's profile pic
+    }]);
+
 
   if (error) console.error("Error sending message:", error);
 
   document.getElementById("chat-input").value = "";
 }
 
-// make pressing Enter send the message
-document.addEventListener("DOMContentLoaded", () => {
+function setupChatInput() {
   const input = document.getElementById("chat-input");
-  if (input) {
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault(); // stop newlines
-        sendMessage();
-      }
-    });
-  }
-});
+  if (!input) return;
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+}
 
 // level to role
 function levelToRole(level) {
@@ -414,16 +427,23 @@ async function loadMessages() {
     return;
   }
 
-  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role));
+  data.forEach((msg) => addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, msg.profile_image));
 
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await applyProfileToUI(); // wait until user loaded
+
+document.addEventListener("DOMContentLoaded", initPage);
+
+async function initPage() {
+  await loadLayout();        // navbar + footer load
+  await applyProfileToUI();  // load currentUser AFTER navbar loads
+
   if (window.currentUser) {
-    await loadMessages(); // only load messages after profile is ready
+    await loadMessages();    // NOW messages will load correctly
   }
-});
+
+  setupChatInput();
+}
 
 
 // ⚡ Real-time message updates (no refresh)
@@ -431,26 +451,72 @@ document.addEventListener("DOMContentLoaded", async () => {
 db.channel("chat")
   .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
     const msg = payload.new;
-    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role);
+    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, window.currentUser?.profile_image);
   })
   .subscribe();
 
 
 // ---------- Profile Image Upload ----------
 
-async function uploadProfileImage(file, userId) {
-  const fileExt = file.name.split('.').pop();
-  const filePath = `${userId}.${fileExt}`;
+async function uploadProfilePicture() {
+    if (!window.currentUser) {
+        alert("You need to log in first.");
+        return;
+    }
 
-  const { data, error } = await db.storage
-    .from('profile_pics')
-    .upload(filePath, file, { upsert: true });
+    const fileInput = document.getElementById("profile-pic-file");
+    const file = fileInput.files[0];
 
-  if (error) {
-    console.error("Upload error:", error);
-    return null;
-  }
+    if (!file) {
+        alert("Pick an image first.");
+        return;
+    }
 
-  return filePath;
+    const userId = window.currentUser.id;
+
+    // unique filename
+    const fileName = `${userId}_${Date.now()}.${file.name.split('.').pop()}`;
+
+    // upload image
+    const { data: uploadData, error: uploadErr } = await db.storage
+        .from("profile-pics")
+        .upload(fileName, file);
+
+    if (uploadErr) {
+        console.error(uploadErr);
+        alert("Upload failed.");
+        return;
+    }
+
+    // get public URL
+    const { data: urlData } = db.storage
+        .from("profile-pics")
+        .getPublicUrl(fileName);
+
+    const imageUrl = urlData.publicUrl;
+
+    // save to user row
+    const { error: updateErr } = await db
+        .from("users")
+        .update({ pfp: imageUrl })
+        .eq("id", userId);
+
+    if (updateErr) {
+        console.error(updateErr);
+        alert("Could not update profile.");
+        return;
+    }
+
+    // update session data
+    window.currentUser.pfp = imageUrl;
+
+    alert("Profile picture updated!");
+}
+
+
+function getPublicProfileImage(userId, ext = "png") {
+  return db.storage
+    .from("profile_pics")
+    .getPublicUrl(`${userId}.${ext}`).data.publicUrl;
 }
 

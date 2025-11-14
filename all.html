@@ -11,7 +11,7 @@
 </head>
 
 <body>
-    <div id="navbar"></div>
+    <div id="navbar"></div><br><br><br><br>
 
     <div class="content-section">
         <h1>All AI Picketts</h1>
@@ -22,10 +22,10 @@
     <script>
         async function loadAllImages() {
             // only load images if logged in
-            if (!window.currentUser) {
-                document.getElementById('images-container').innerHTML = "<p>Please log in to view the images.</p>";
-                return;
-            }
+            // if (!window.currentUser) {
+            //     document.getElementById('images-container').innerHTML = "<p>Please log in to view the images.</p>";
+            //     return;
+            // }
             const today = new Date().toLocaleDateString("en-CA"); 
             const { data, error } = await db
                 .from('today_image')
