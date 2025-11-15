@@ -398,7 +398,7 @@ async function sendMessage() {
   const color = window.currentUser?.color || "#000000ff";
 
   const role = levelToRole(level);
-  const profile_image = window.currentUser?.profile_image || '/media/pfp.png';
+  const profile_image = window.currentUser?.profile_image || 'media/pfp.png';
 
   const { error } = await db
     .from("chat_messages")
