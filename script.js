@@ -556,6 +556,27 @@ async function initPage() {
 
   if (window.currentUser) {
     await loadMessages();    // NOW messages will load correctly
+
+    // ⚡ Real-time message updates (no refresh) - only subscribe if logged in
+    db.channel("chat")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+        const msg = payload.new;
+        addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, window.currentUser?.profile_image, msg.id);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages" }, (payload) => {
+        const deletedId = payload.old.id;
+        const messageElement = document.querySelector(`[data-message-id="${deletedId}"]`);
+        if (messageElement) {
+          messageElement.remove();
+        }
+      })
+      .subscribe();
+  } else {
+    // For non-logged-in users, show a message or hide the chat
+    const messagesDiv = document.getElementById("messages");
+    if (messagesDiv) {
+      messagesDiv.innerHTML = "<p>Please log in to view messages.</p>";
+    }
   }
 
   setupChatInput();
@@ -587,20 +608,7 @@ async function initPage() {
 
 
 // ⚡ Real-time message updates (no refresh)
-// update real-time listener to include emote_url and handle deletes
-db.channel("chat")
-  .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-    const msg = payload.new;
-    addMessage(msg.username, msg.message, msg.created_at, msg.emote_url, msg.color, msg.role, window.currentUser?.profile_image, msg.id);
-  })
-  .on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages" }, (payload) => {
-    const deletedId = payload.old.id;
-    const messageElement = document.querySelector(`[data-message-id="${deletedId}"]`);
-    if (messageElement) {
-      messageElement.remove();
-    }
-  })
-  .subscribe();
+// Moved to initPage() to only subscribe if logged in
 
 
 // ---------- Profile Image Upload ----------
