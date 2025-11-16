@@ -377,27 +377,22 @@ function addMessage(username, text, created_at, emote_url = null, color = "#0000
 
   // For initial load, don't increment unread count or auto-scroll
   if (!isInitialLoad) {
-    // Check if user is scrolled to bottom and window is focused
-    const isAtBottom = messagesDiv.scrollTop + messagesDiv.clientHeight >= messagesDiv.scrollHeight - 10;
-    const isWindowFocused = document.hasFocus();
+    // Always auto-scroll to bottom for new messages
+    // Use setTimeout to ensure DOM has updated before scrolling
+    setTimeout(() => {
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }, 0);
 
-    if (isAtBottom) {
-      // Auto-scroll to bottom for new messages when at bottom (regardless of focus)
-      // Use setTimeout to ensure DOM has updated before scrolling
-      setTimeout(() => {
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      }, 0);
-      // Mark as read only if window is focused
-      if (isWindowFocused && messageId) {
-        lastReadMessageId = messageId;
-        localStorage.setItem('lastReadMessageId', lastReadMessageId);
-        unreadCount = 0;
-        updateUnreadCounter();
-        updateLastReadIndicator();
-        updateDocumentTitle();
-      }
+    // Mark as read if window is focused (since it always scrolls to bottom)
+    if (document.hasFocus() && messageId) {
+      lastReadMessageId = messageId;
+      localStorage.setItem('lastReadMessageId', lastReadMessageId);
+      unreadCount = 0;
+      updateUnreadCounter();
+      updateLastReadIndicator();
+      updateDocumentTitle();
     } else {
-      // Increment unread count if not at bottom
+      // Increment unread count if not focused
       if (messageId && messageId !== lastReadMessageId) {
         unreadCount++;
         updateUnreadCounter();
