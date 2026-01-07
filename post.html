@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel='stylesheet' href="stylesheet.css">
+    <title>Post</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+
+</head>
+<body>
+    <div id="navbar"></div><br><br><br><br>
+    
+
+    <div class="content-section">
+    <h1>Create a Post</h1>
+    <h3>Select an image / video</h3>
+    <input type="file" id="fileInput" accept="image/*,video/*"><br><br>
+    <h3>Write a caption</h3>
+    <textarea id="captionInput" rows="4" cols="50" placeholder="Write your caption here..."></textarea><br><br>
+    <button id="postButton" onclick="uploadPost()">Post</button>
+    </div>
+
+</body>
+</html>

@@ -205,8 +205,9 @@ async function loadNavbarAuth() {
     const color = profile?.color || "#000";
 
     authSpan.innerHTML = `
-      <a href="account.html" style="margin-right:10px; font-weight:bold;">${username}</a>
       <a onclick="logout(); loadNavbarAuth()">Logout</a>
+      <a href="account.html" style="margin-right:10px; font-weight:bold;">${username}</a>
+      <a href="post.html" style="margin-right:10px;">New Post</a>
     `;
   } else {
     // Not logged in
@@ -277,13 +278,28 @@ async function loadLayout() {
 }
 
 
-// 🕒 Format time as (HH:MM)
+// 🕒 Format time as DD/MM/YYYY HH:MM PM / AM
 function formatTime(timestamp) {
   const date = new Date(timestamp);
+  const userLocalDate = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
   const hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `(${hours}:${minutes})`;
+  //format date to DD/MM/YYYY HH:MM
+
+  return `${userLocalDate.getDate()}/${userLocalDate.getMonth() + 1}/${userLocalDate.getFullYear()} ${hours}:${minutes}`;
 }
+
+function toggleMedia() {
+  const emotes = document.querySelectorAll('.chat-emote');
+  emotes.forEach(emote => {
+    if (emote.style.display === 'none') {
+      emote.style.display = 'inline';
+    } else {
+      emote.style.display = 'none';
+    }
+  });
+}
+
 
 function addMessage(username, text, created_at, emote_url = null, color = "#000000ff", role="", profile_pic=null, messageId=null, isInitialLoad=false) {
   // only do this if messages div exists
@@ -844,3 +860,125 @@ async function deleteMessage(messageId) {
   // Reload messages to fix grouping after deletion
   await loadMessages();
 }
+
+
+async function uploadPost() {
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) return alert("select a pic lil bro");
+
+  const { data: userData } = await db.auth.getUser();
+  const user = userData?.user;
+  if (!user) return alert("u gotta log in fam");
+
+  const fileName = `${user.id}_${Date.now()}.${file.name.split(".").pop()}`;
+
+  // Upload to bucket
+
+  const { data: uploadData, error: uploadErr } = await db
+    .storage
+    .from("posts")
+    .upload(fileName, file, { upsert: true });
+
+  if (uploadErr) {
+    console.error(uploadErr);
+    alert("Upload failed.");
+    return;
+  }
+
+  // Get full public URL
+  const { data: publicUrlData } = db
+    .storage
+    .from("posts")
+    .getPublicUrl(fileName);
+
+  const publicUrl = publicUrlData.publicUrl;
+
+
+
+  // Add post to post table in DB
+  const { error: updateErr } = await db
+    .from("posts")
+    .insert({
+      user_id: user.id,
+      image_url: publicUrl,
+      caption: document.getElementById("captionInput").value
+    });
+
+  if (updateErr) {
+    console.error(updateErr);
+    alert("Failed to add post.");
+    return;
+  }
+
+  alert("Posted!");
+
+
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadPosts();
+});
+
+async function loadPosts() {
+  const container = document.getElementById("posts-container");
+  if (!container) return;
+
+  const { data: posts, error } = await db
+    .from("posts")
+    .select(`
+      id,
+      image_url,
+      caption,
+      created_at,
+      users (
+        username,
+        profile_image
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("loadPosts error:", error);
+    return;
+  }
+
+  container.innerHTML = "";
+
+  posts.forEach(post => {
+    const username = post.users?.username || "unknown";
+    const profileImage = post.users?.profile_image || "media/pfp.png";
+
+    const postEl = document.createElement("div");
+    postEl.className = "post";
+
+    postEl.innerHTML = `
+      <div class="post-header">
+        <div class="post-header-left">
+          <img src="${profileImage}" class="post-pfp" />
+        </div>
+        <div class="post-header-right">
+          <span class="post-username">@${username}</span>
+        </div>
+      </div>
+
+      <div class="post-content">
+        ${post.image_url.endsWith('.mp4') 
+            ? `<video class="post-video" src="${post.image_url}" controls autoplay muted loop></video>` 
+            : `<img src="${post.image_url}" class="post-image" />`
+        }
+        ${post.caption ? `<p class="caption">${post.caption}</p>` : ""}
+        <span class="post-timestamp">${formatTime(post.created_at)}</span>
+      </div>
+
+      <div class="post-interactions">
+        <button class="icon-btn">❤️</button>
+        <button class="icon-btn">💬</button>
+        <button class="icon-btn">💾</button>
+        <button class="icon-btn">➕</button>
+      </div>
+    `;
+
+    container.appendChild(postEl);
+  });
+}
+
