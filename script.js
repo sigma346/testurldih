@@ -915,11 +915,38 @@ async function uploadPost() {
 
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await getCurrentUser();
   loadPosts();
+  
 });
 
+let currentUser = null;
+
+async function getCurrentUser() {
+  const { data } = await db.auth.getUser();
+  currentUser = data.user;
+}
+
+
+
 async function loadPosts() {
+  let likedPostIds = new Set();
+
+  if (currentUser) {
+    const { data: likes, error: likesErr } = await db
+      .from("post_likes")
+      .select("post_id")
+      .eq("user_id", currentUser.id);
+
+    if (!likesErr && likes) {
+      likedPostIds = new Set(likes.map(l => l.post_id));
+      console.log(likedPostIds);
+    } else if (likesErr) {
+      console.error("Error fetching likes:", likesErr);
+    }
+  }
+
   const container = document.getElementById("posts-container");
   if (!container) return;
 
@@ -933,9 +960,11 @@ async function loadPosts() {
       users (
         username,
         profile_image
-      )
+      ),
+      post_likes ( count )
     `)
     .order("created_at", { ascending: false });
+
 
   if (error) {
     console.error("loadPosts error:", error);
@@ -947,6 +976,12 @@ async function loadPosts() {
   posts.forEach(post => {
     const username = post.users?.username || "unknown";
     const profileImage = post.users?.profile_image || "media/pfp.png";
+    const isLiked = likedPostIds.has(post.id);
+    console.log(isLiked)
+    let likeClass = "";
+    if (isLiked) {
+      likeClass = "clicked";
+    }
 
     const postEl = document.createElement("div");
     postEl.className = "post";
@@ -971,14 +1006,82 @@ async function loadPosts() {
       </div>
 
       <div class="post-interactions">
-        <button class="icon-btn">❤️</button>
-        <button class="icon-btn">💬</button>
-        <button class="icon-btn">💾</button>
-        <button class="icon-btn">➕</button>
+        <button class="icon-btn like-btn ${likeClass}" data-post-id="${post.id}">
+          <img src="media/icons/heart-unclicked.svg" class="like-unclicked-icon" />
+          <img src="media/icons/heart-clicked.svg" class="like-clicked-icon" />
+        </button>
+        <span class="like-count">${post.post_likes.length}</span>
+        <button class="icon-btn comment-btn">
+          <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.97 122.88"><title>instagram-comment</title><path d="M61.44,0a61.46,61.46,0,0,1,54.91,89l6.44,25.74a5.83,5.83,0,0,1-7.25,7L91.62,115A61.43,61.43,0,1,1,61.44,0ZM96.63,26.25a49.78,49.78,0,1,0-9,77.52A5.83,5.83,0,0,1,92.4,103L109,107.77l-4.5-18a5.86,5.86,0,0,1,.51-4.34,49.06,49.06,0,0,0,4.62-11.58,50,50,0,0,0-13-47.62Z"/></svg>
+        </button>
+        <span>0</span>
+        <button class="icon-btn save-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 459 511.87"><path fill-rule="nonzero" d="M32.256 0h394.488c8.895 0 16.963 3.629 22.795 9.462C455.371 15.294 459 23.394 459 32.256v455.929c0 13.074-10.611 23.685-23.686 23.685-7.022 0-13.341-3.07-17.683-7.93L230.124 330.422 39.692 505.576c-9.599 8.838-24.56 8.214-33.398-1.385a23.513 23.513 0 01-6.237-16.006L0 32.256C0 23.459 3.629 15.391 9.461 9.55l.089-.088C15.415 3.621 23.467 0 32.256 0zm379.373 47.371H47.371v386.914l166.746-153.364c8.992-8.198 22.933-8.319 32.013.089l165.499 153.146V47.371z"/></svg>
+        </button>
+        <span>0</span>
+        <button class="icon-btn share-btn">
+          <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.88 108.3"><title>instagram-share</title><path d="M96.14,12.47l-76.71-1.1,28.3,27.85L96.14,12.47ZM53.27,49l9.88,39.17L102.1,22,53.27,49ZM117,1.6a5.59,5.59,0,0,1,4.9,8.75L66.06,105.21a5.6,5.6,0,0,1-10.44-1.15L41.74,49,1.67,9.57A5.59,5.59,0,0,1,5.65,0L117,1.6Z"/></svg>
+        </button>
+        <span>0</span>
       </div>
     `;
 
     container.appendChild(postEl);
+    const likeBtn = postEl.querySelector(".like-btn");
+    const unclickedIcon = likeBtn.querySelector(".like-unclicked-icon");
+    const clickedIcon = likeBtn.querySelector(".like-clicked-icon");
+
+    if (isLiked) {
+      unclickedIcon.style.display = "none";
+      clickedIcon.style.display = "block";
+    } else {
+      clickedIcon.style.display = "none";
+      unclickedIcon.style.display = "block";
+    }
   });
 }
 
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".like-btn");
+  if (!btn) return;
+
+  if (!currentUser) {
+    alert("login first bro");
+    return;
+  }
+
+  const postId = parseInt(btn.dataset.postId, 10);
+  if (!postId) return;
+
+  const unclickedIcon = btn.querySelector(".like-unclicked-icon");
+  const clickedIcon = btn.querySelector(".like-clicked-icon");
+
+  const clicked = btn.classList.contains("clicked");
+
+  if (clicked) {
+    const { error } = await db
+      .from("post_likes")
+      .delete()
+      .eq("post_id", postId)
+      .eq("user_id", currentUser.id);
+
+    if (error) return console.error(error);
+
+    clickedIcon.style.display = "none";
+    unclickedIcon.style.display = "block";
+    btn.classList.remove("clicked");
+  } else {
+    const { error } = await db
+      .from("post_likes")
+      .insert({
+        post_id: postId,
+        user_id: currentUser.id
+      });
+
+    if (error) return console.error(error);
+
+    unclickedIcon.style.display = "none";
+    clickedIcon.style.display = "block";
+    btn.classList.add("clicked");
+  }
+});
