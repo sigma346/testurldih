@@ -1044,6 +1044,12 @@ async function loadPosts() {
     const username = post.users?.username || "unknown";
     const profileImage = post.users?.profile_image || "media/pfp.png";
     const isLiked = likedPostIds.has(post.id);
+    const mediaUrl = post.image_url || "";
+    const mediaMarkup = !mediaUrl
+      ? `<div class="post-media-missing">Media unavailable</div>`
+      : mediaUrl.endsWith(".mp4")
+        ? `<video class="post-video" src="${mediaUrl}" controls autoplay muted loop></video>`
+        : `<img src="${mediaUrl}" class="post-image" />`;
     console.log(isLiked)
     let likeClass = "";
     if (isLiked) {
@@ -1064,10 +1070,7 @@ async function loadPosts() {
       </div>
 
       <div class="post-content">
-        ${post.image_url.endsWith('.mp4') 
-            ? `<video class="post-video" src="${post.image_url}" controls autoplay muted loop></video>` 
-            : `<img src="${post.image_url}" class="post-image" />`
-        }
+        ${mediaMarkup}
         ${post.caption ? `<p class="caption">${post.caption}</p>` : ""}
         <span class="post-timestamp">${formatTime(post.created_at)}</span>
       </div>
