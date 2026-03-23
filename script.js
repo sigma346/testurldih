@@ -1109,6 +1109,8 @@ async function loadPosts() {
       clickedIcon.style.display = "none";
       unclickedIcon.style.display = "block";
     }
+
+    renderComments(postEl, post.id);
   });
 }
 
