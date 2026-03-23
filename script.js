@@ -922,6 +922,73 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 let currentUser = null;
+const demoCommentsByPost = {};
+let activeCommentPostId = null;
+
+function getDemoComments(postId) {
+  if (!demoCommentsByPost[postId]) {
+    demoCommentsByPost[postId] = [
+      { username: "pixelpanda", text: "This is so clean 🔥" },
+      { username: "nightowl", text: "Love this post layout." },
+      { username: "mintyfresh", text: "Can’t wait for real comments next 👀" }
+    ];
+  }
+
+  return demoCommentsByPost[postId];
+}
+
+function ensureCommentsOverlay() {
+  let overlay = document.getElementById("comments-overlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "comments-overlay";
+  overlay.className = "comments-overlay hidden";
+  overlay.innerHTML = `
+    <div class="comments-modal" role="dialog" aria-modal="true" aria-label="Comments">
+      <div class="comments-modal-header">
+        <h3>Comments</h3>
+        <button class="comments-close-btn" aria-label="Close comments">✕</button>
+      </div>
+      <div class="comments-list"></div>
+      <div class="comment-input-row">
+        <textarea class="comment-input" placeholder="Add a comment..."></textarea>
+        <button class="comment-submit-btn">Post</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function renderOverlayComments(postId) {
+  const overlay = ensureCommentsOverlay();
+  const commentsList = overlay.querySelector(".comments-list");
+  if (!commentsList) return;
+
+  const comments = getDemoComments(postId);
+  commentsList.innerHTML = comments
+    .map(comment => `
+      <div class="comment-item">
+        <span class="comment-user">@${comment.username}</span>
+        <span class="comment-text">${comment.text}</span>
+      </div>
+    `)
+    .join("");
+}
+
+function openCommentsOverlay(postId) {
+  activeCommentPostId = postId;
+  renderOverlayComments(postId);
+  const overlay = ensureCommentsOverlay();
+  overlay.classList.remove("hidden");
+}
+
+function closeCommentsOverlay() {
+  const overlay = ensureCommentsOverlay();
+  overlay.classList.add("hidden");
+}
 
 async function getCurrentUser() {
   const { data } = await db.auth.getUser();
@@ -1011,10 +1078,10 @@ async function loadPosts() {
           <img src="media/icons/heart-clicked.svg" class="like-clicked-icon" />
         </button>
         <span class="like-count">${post.post_likes?.length || 0}</span>
-        <button class="icon-btn comment-btn">
+        <button class="icon-btn comment-btn" data-post-id="${post.id}">
           <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.97 122.88"><title>instagram-comment</title><path d="M61.44,0a61.46,61.46,0,0,1,54.91,89l6.44,25.74a5.83,5.83,0,0,1-7.25,7L91.62,115A61.43,61.43,0,1,1,61.44,0ZM96.63,26.25a49.78,49.78,0,1,0-9,77.52A5.83,5.83,0,0,1,92.4,103L109,107.77l-4.5-18a5.86,5.86,0,0,1,.51-4.34,49.06,49.06,0,0,0,4.62-11.58,50,50,0,0,0-13-47.62Z"/></svg>
         </button>
-        <span>0</span>
+        <span class="comment-count">${getDemoComments(post.id).length}</span>
         <button class="icon-btn save-btn">
           <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 459 511.87"><path fill-rule="nonzero" d="M32.256 0h394.488c8.895 0 16.963 3.629 22.795 9.462C455.371 15.294 459 23.394 459 32.256v455.929c0 13.074-10.611 23.685-23.686 23.685-7.022 0-13.341-3.07-17.683-7.93L230.124 330.422 39.692 505.576c-9.599 8.838-24.56 8.214-33.398-1.385a23.513 23.513 0 01-6.237-16.006L0 32.256C0 23.459 3.629 15.391 9.461 9.55l.089-.088C15.415 3.621 23.467 0 32.256 0zm379.373 47.371H47.371v386.914l166.746-153.364c8.992-8.198 22.933-8.319 32.013.089l165.499 153.146V47.371z"/></svg>
         </button>
@@ -1024,6 +1091,7 @@ async function loadPosts() {
         </button>
         <span>0</span>
       </div>
+
     `;
 
     container.appendChild(postEl);
@@ -1087,5 +1155,47 @@ document.addEventListener("click", async (e) => {
     clickedIcon.style.display = "block";
     btn.classList.add("clicked");
     if (likeCountEl) likeCountEl.textContent = String(currentCount + 1);
+  }
+});
+
+document.addEventListener("click", (e) => {
+  const commentBtn = e.target.closest(".comment-btn");
+  if (!commentBtn) return;
+
+  const postId = parseInt(commentBtn.dataset.postId, 10);
+  if (!postId) return;
+  openCommentsOverlay(postId);
+});
+
+document.addEventListener("click", (e) => {
+  if (e.target.matches(".comments-overlay")) {
+    closeCommentsOverlay();
+    return;
+  }
+
+  if (e.target.closest(".comments-close-btn")) {
+    closeCommentsOverlay();
+    return;
+  }
+
+  const submitBtn = e.target.closest(".comment-submit-btn");
+  if (!submitBtn) return;
+
+  if (!activeCommentPostId) return;
+
+  const overlay = ensureCommentsOverlay();
+  const input = overlay.querySelector(".comment-input");
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  getDemoComments(activeCommentPostId).push({ username: "you", text });
+  renderOverlayComments(activeCommentPostId);
+  input.value = "";
+
+  const countEl = document.querySelector(`.comment-btn[data-post-id="${activeCommentPostId}"]`)?.parentElement?.querySelector(".comment-count");
+  if (countEl) {
+    countEl.textContent = String(getDemoComments(activeCommentPostId).length);
   }
 });
