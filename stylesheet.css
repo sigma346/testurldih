@@ -610,41 +610,87 @@ button:active {
   transform: scale(1.2);
 }
 
-.comments-panel {
-  margin-top: 12px;
-  background: #f8f8f8;
-  border: 1px solid #d5d5d5;
-  border-radius: 12px;
-  padding: 10px;
+.comments-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.comments-modal {
+  width: min(640px, 100%);
+  max-height: min(80vh, 700px);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(160deg, #ffffff 0%, #f2f2f2 100%);
+  border: 1px solid #bfc2c8;
+  border-radius: 16px;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.comments-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #c6c9cf;
+  background: #e4e7ec;
+}
+
+.comments-modal-header h3 {
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.comments-close-btn {
+  background: #ffffff;
+  color: #353535;
+  border: 1px solid #c9c9c9;
+  box-shadow: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  padding: 0;
+  line-height: 1;
 }
 
 .comments-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 220px;
+  gap: 10px;
+  padding: 14px;
   overflow-y: auto;
 }
 
 .comment-item {
   background: #ffffff;
-  border-radius: 8px;
-  padding: 8px 10px;
-  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d9d9d9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .comment-user {
   display: inline-block;
-  font-weight: 600;
-  margin-right: 6px;
+  font-weight: 700;
+  color: #467f33;
+  margin-right: 8px;
 }
 
 .comment-text {
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 .comment-input-row {
-  margin-top: 10px;
+  border-top: 1px solid #d3d3d3;
+  background: #f8f8f8;
+  padding: 12px;
   display: flex;
   gap: 8px;
   align-items: flex-end;
@@ -653,11 +699,11 @@ button:active {
 .comment-input {
   width: 100%;
   min-height: 44px;
-  max-height: 100px;
+  max-height: 110px;
   resize: vertical;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid #c8c8c8;
-  padding: 8px;
+  padding: 10px;
   font-family: inherit;
 }
 

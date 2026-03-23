@@ -923,6 +923,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 let currentUser = null;
 const demoCommentsByPost = {};
+let activeCommentPostId = null;
 
 function getDemoComments(postId) {
   if (!demoCommentsByPost[postId]) {
@@ -936,12 +937,37 @@ function getDemoComments(postId) {
   return demoCommentsByPost[postId];
 }
 
-function renderComments(postEl, postId) {
-  const commentsList = postEl.querySelector(".comments-list");
+function ensureCommentsOverlay() {
+  let overlay = document.getElementById("comments-overlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "comments-overlay";
+  overlay.className = "comments-overlay hidden";
+  overlay.innerHTML = `
+    <div class="comments-modal" role="dialog" aria-modal="true" aria-label="Comments">
+      <div class="comments-modal-header">
+        <h3>Comments</h3>
+        <button class="comments-close-btn" aria-label="Close comments">✕</button>
+      </div>
+      <div class="comments-list"></div>
+      <div class="comment-input-row">
+        <textarea class="comment-input" placeholder="Add a comment..."></textarea>
+        <button class="comment-submit-btn">Post</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function renderOverlayComments(postId) {
+  const overlay = ensureCommentsOverlay();
+  const commentsList = overlay.querySelector(".comments-list");
   if (!commentsList) return;
 
   const comments = getDemoComments(postId);
-
   commentsList.innerHTML = comments
     .map(comment => `
       <div class="comment-item">
@@ -950,6 +976,18 @@ function renderComments(postEl, postId) {
       </div>
     `)
     .join("");
+}
+
+function openCommentsOverlay(postId) {
+  activeCommentPostId = postId;
+  renderOverlayComments(postId);
+  const overlay = ensureCommentsOverlay();
+  overlay.classList.remove("hidden");
+}
+
+function closeCommentsOverlay() {
+  const overlay = ensureCommentsOverlay();
+  overlay.classList.add("hidden");
 }
 
 async function getCurrentUser() {
@@ -1054,13 +1092,6 @@ async function loadPosts() {
         <span>0</span>
       </div>
 
-      <div class="comments-panel hidden">
-        <div class="comments-list"></div>
-        <div class="comment-input-row">
-          <textarea class="comment-input" placeholder="Add a comment..."></textarea>
-          <button class="comment-submit-btn" data-post-id="${post.id}">Post</button>
-        </div>
-      </div>
     `;
 
     container.appendChild(postEl);
@@ -1133,33 +1164,40 @@ document.addEventListener("click", (e) => {
   const commentBtn = e.target.closest(".comment-btn");
   if (!commentBtn) return;
 
-  const postEl = commentBtn.closest(".post");
-  const commentsPanel = postEl?.querySelector(".comments-panel");
-  if (!commentsPanel) return;
-
-  commentsPanel.classList.toggle("hidden");
+  const postId = parseInt(commentBtn.dataset.postId, 10);
+  if (!postId) return;
+  openCommentsOverlay(postId);
 });
 
 document.addEventListener("click", (e) => {
+  if (e.target.matches(".comments-overlay")) {
+    closeCommentsOverlay();
+    return;
+  }
+
+  if (e.target.closest(".comments-close-btn")) {
+    closeCommentsOverlay();
+    return;
+  }
+
   const submitBtn = e.target.closest(".comment-submit-btn");
   if (!submitBtn) return;
 
-  const postId = parseInt(submitBtn.dataset.postId, 10);
-  if (!postId) return;
+  if (!activeCommentPostId) return;
 
-  const postEl = submitBtn.closest(".post");
-  const input = postEl?.querySelector(".comment-input");
+  const overlay = ensureCommentsOverlay();
+  const input = overlay.querySelector(".comment-input");
   if (!input) return;
 
   const text = input.value.trim();
   if (!text) return;
 
-  getDemoComments(postId).push({ username: "you", text });
-  renderComments(postEl, postId);
+  getDemoComments(activeCommentPostId).push({ username: "you", text });
+  renderOverlayComments(activeCommentPostId);
   input.value = "";
 
-  const countEl = postEl.querySelector(".comment-count");
+  const countEl = document.querySelector(`.comment-btn[data-post-id="${activeCommentPostId}"]`)?.parentElement?.querySelector(".comment-count");
   if (countEl) {
-    countEl.textContent = String(getDemoComments(postId).length);
+    countEl.textContent = String(getDemoComments(activeCommentPostId).length);
   }
 });
