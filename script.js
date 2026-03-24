@@ -1040,26 +1040,28 @@ async function loadPosts() {
 
   container.innerHTML = "";
 
-  posts.forEach(post => {
-    const username = post.users?.username || "unknown";
-    const profileImage = post.users?.profile_image || "media/pfp.png";
-    const isLiked = likedPostIds.has(post.id);
-    const mediaUrl = post.image_url || "";
-    const mediaMarkup = !mediaUrl
-      ? `<div class="post-media-missing">Media unavailable</div>`
-      : mediaUrl.endsWith(".mp4")
-        ? `<video class="post-video" src="${mediaUrl}" controls autoplay muted loop></video>`
-        : `<img src="${mediaUrl}" class="post-image" />`;
-    console.log(isLiked)
-    let likeClass = "";
-    if (isLiked) {
-      likeClass = "clicked";
-    }
+  for (const post of posts) {
+    try {
+      const username = post?.users?.username || "unknown";
+      const profileImage = post?.users?.profile_image || "media/pfp.png";
+      const isLiked = likedPostIds.has(post.id);
+      const mediaUrl = typeof post?.image_url === "string" ? post.image_url.trim() : "";
+      const mediaMarkup = !mediaUrl
+        ? `<div class="post-media-missing">Media unavailable</div>`
+        : mediaUrl.toLowerCase().endsWith(".mp4")
+          ? `<video class="post-video" src="${mediaUrl}" controls autoplay muted loop></video>`
+          : `<img src="${mediaUrl}" class="post-image" />`;
+      const commentCount = getDemoComments(post.id).length;
+      console.log(isLiked)
+      let likeClass = "";
+      if (isLiked) {
+        likeClass = "clicked";
+      }
 
-    const postEl = document.createElement("div");
-    postEl.className = "post";
+      const postEl = document.createElement("div");
+      postEl.className = "post";
 
-    postEl.innerHTML = `
+      postEl.innerHTML = `
       <div class="post-header">
         <div class="post-header-left">
           <img src="${profileImage}" class="post-pfp" />
@@ -1084,7 +1086,7 @@ async function loadPosts() {
         <button class="icon-btn comment-btn" data-post-id="${post.id}">
           <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.97 122.88"><title>instagram-comment</title><path d="M61.44,0a61.46,61.46,0,0,1,54.91,89l6.44,25.74a5.83,5.83,0,0,1-7.25,7L91.62,115A61.43,61.43,0,1,1,61.44,0ZM96.63,26.25a49.78,49.78,0,1,0-9,77.52A5.83,5.83,0,0,1,92.4,103L109,107.77l-4.5-18a5.86,5.86,0,0,1,.51-4.34,49.06,49.06,0,0,0,4.62-11.58,50,50,0,0,0-13-47.62Z"/></svg>
         </button>
-        <span class="comment-count">${getDemoComments(post.id).length}</span>
+        <span class="comment-count">${commentCount}</span>
         <button class="icon-btn save-btn">
           <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 459 511.87"><path fill-rule="nonzero" d="M32.256 0h394.488c8.895 0 16.963 3.629 22.795 9.462C455.371 15.294 459 23.394 459 32.256v455.929c0 13.074-10.611 23.685-23.686 23.685-7.022 0-13.341-3.07-17.683-7.93L230.124 330.422 39.692 505.576c-9.599 8.838-24.56 8.214-33.398-1.385a23.513 23.513 0 01-6.237-16.006L0 32.256C0 23.459 3.629 15.391 9.461 9.55l.089-.088C15.415 3.621 23.467 0 32.256 0zm379.373 47.371H47.371v386.914l166.746-153.364c8.992-8.198 22.933-8.319 32.013.089l165.499 153.146V47.371z"/></svg>
         </button>
@@ -1095,23 +1097,24 @@ async function loadPosts() {
         <span>0</span>
       </div>
 
-    `;
+      `;
 
-    container.appendChild(postEl);
-    const likeBtn = postEl.querySelector(".like-btn");
-    const unclickedIcon = likeBtn.querySelector(".like-unclicked-icon");
-    const clickedIcon = likeBtn.querySelector(".like-clicked-icon");
+      container.appendChild(postEl);
+      const likeBtn = postEl.querySelector(".like-btn");
+      const unclickedIcon = likeBtn.querySelector(".like-unclicked-icon");
+      const clickedIcon = likeBtn.querySelector(".like-clicked-icon");
 
-    if (isLiked) {
-      unclickedIcon.style.display = "none";
-      clickedIcon.style.display = "block";
-    } else {
-      clickedIcon.style.display = "none";
-      unclickedIcon.style.display = "block";
+      if (isLiked) {
+        unclickedIcon.style.display = "none";
+        clickedIcon.style.display = "block";
+      } else {
+        clickedIcon.style.display = "none";
+        unclickedIcon.style.display = "block";
+      }
+    } catch (renderErr) {
+      console.error("post render error", post, renderErr);
     }
-
-    renderComments(postEl, post.id);
-  });
+  }
 }
 
 document.addEventListener("click", async (e) => {
