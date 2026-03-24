@@ -922,6 +922,131 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 let currentUser = null;
+let activeCommentPostId = null;
+
+function escapeHtml(text = "") {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function fetchCommentCounts(postIds = []) {
+  if (!postIds.length) return new Map();
+
+  const { data, error } = await db
+    .from("comments")
+    .select("post_id")
+    .in("post_id", postIds);
+
+  if (error || !data) {
+    console.error("Error loading comment counts:", error);
+    return new Map();
+  }
+
+  const counts = new Map();
+  data.forEach(row => {
+    counts.set(row.post_id, (counts.get(row.post_id) || 0) + 1);
+  });
+
+  return counts;
+}
+
+async function updatePostCommentCount(postId) {
+  const { count, error } = await db
+    .from("comments")
+    .select("id", { count: "exact", head: true })
+    .eq("post_id", postId);
+
+  if (error) {
+    console.error("Error updating comment count:", error);
+    return;
+  }
+
+  const countEl = document.querySelector(`.comment-btn[data-post-id="${postId}"]`)?.parentElement?.querySelector(".comment-count");
+  if (countEl) {
+    countEl.textContent = String(count || 0);
+  }
+}
+
+function ensureCommentsOverlay() {
+  let overlay = document.getElementById("comments-overlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "comments-overlay";
+  overlay.className = "comments-overlay hidden";
+  overlay.innerHTML = `
+    <div class="comments-modal" role="dialog" aria-modal="true" aria-label="Comments">
+      <div class="comments-modal-header">
+        <h3>Comments</h3>
+        <button class="comments-close-btn" aria-label="Close comments">✕</button>
+      </div>
+      <div class="comments-list"></div>
+      <div class="comment-input-row">
+        <textarea class="comment-input" placeholder="Add a comment..."></textarea>
+        <button class="comment-submit-btn">Post</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+async function renderOverlayComments(postId) {
+  const overlay = ensureCommentsOverlay();
+  const commentsList = overlay.querySelector(".comments-list");
+  if (!commentsList) return;
+
+  commentsList.innerHTML = `<div class="comment-empty">Loading comments...</div>`;
+
+  const { data: comments, error } = await db
+    .from("comments")
+    .select(`
+      id,
+      comment,
+      created_at,
+      user_id,
+      users ( username )
+    `)
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error loading comments:", error);
+    commentsList.innerHTML = `<div class="comment-empty">Could not load comments.</div>`;
+    return;
+  }
+
+  if (!comments?.length) {
+    commentsList.innerHTML = `<div class="comment-empty">No comments yet.</div>`;
+    return;
+  }
+
+  commentsList.innerHTML = comments
+    .map(comment => `
+      <div class="comment-item">
+        <span class="comment-user">@${escapeHtml(Array.isArray(comment.users) ? (comment.users[0]?.username || "unknown") : (comment.users?.username || "unknown"))}</span>
+        <span class="comment-text">${escapeHtml(comment.comment || "")}</span>
+      </div>
+    `)
+    .join("");
+}
+
+async function openCommentsOverlay(postId) {
+  activeCommentPostId = postId;
+  const overlay = ensureCommentsOverlay();
+  overlay.classList.remove("hidden");
+  await renderOverlayComments(postId);
+}
+
+function closeCommentsOverlay() {
+  const overlay = ensureCommentsOverlay();
+  overlay.classList.add("hidden");
+}
 
 async function getCurrentUser() {
   const { data } = await db.auth.getUser();
@@ -1015,10 +1140,10 @@ async function loadPosts() {
       likeClass = "clicked";
     }
 
-    const postEl = document.createElement("div");
-    postEl.className = "post";
+      const postEl = document.createElement("div");
+      postEl.className = "post";
 
-    postEl.innerHTML = `
+      postEl.innerHTML = `
       <div class="post-header">
         <div class="post-header-left">
           <img src="${profileImage}" class="post-pfp" />
@@ -1029,10 +1154,7 @@ async function loadPosts() {
       </div>
 
       <div class="post-content">
-        ${post.image_url.endsWith('.mp4') 
-            ? `<video class="post-video" src="${post.image_url}" controls autoplay muted loop></video>` 
-            : `<img src="${post.image_url}" class="post-image" />`
-        }
+        ${mediaMarkup}
         ${post.caption ? `<p class="caption">${post.caption}</p>` : ""}
         <span class="post-timestamp">${formatTime(post.created_at)}</span>
       </div>
@@ -1046,7 +1168,7 @@ async function loadPosts() {
         <button class="icon-btn comment-btn">
           <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.97 122.88"><title>instagram-comment</title><path d="M61.44,0a61.46,61.46,0,0,1,54.91,89l6.44,25.74a5.83,5.83,0,0,1-7.25,7L91.62,115A61.43,61.43,0,1,1,61.44,0ZM96.63,26.25a49.78,49.78,0,1,0-9,77.52A5.83,5.83,0,0,1,92.4,103L109,107.77l-4.5-18a5.86,5.86,0,0,1,.51-4.34,49.06,49.06,0,0,0,4.62-11.58,50,50,0,0,0-13-47.62Z"/></svg>
         </button>
-        <span>0</span>
+        <span class="comment-count">${commentCount}</span>
         <button class="icon-btn save-btn">
           <svg xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" fill-rule="evenodd" clip-rule="evenodd" viewBox="0 0 459 511.87"><path fill-rule="nonzero" d="M32.256 0h394.488c8.895 0 16.963 3.629 22.795 9.462C455.371 15.294 459 23.394 459 32.256v455.929c0 13.074-10.611 23.685-23.686 23.685-7.022 0-13.341-3.07-17.683-7.93L230.124 330.422 39.692 505.576c-9.599 8.838-24.56 8.214-33.398-1.385a23.513 23.513 0 01-6.237-16.006L0 32.256C0 23.459 3.629 15.391 9.461 9.55l.089-.088C15.415 3.621 23.467 0 32.256 0zm379.373 47.371H47.371v386.914l166.746-153.364c8.992-8.198 22.933-8.319 32.013.089l165.499 153.146V47.371z"/></svg>
         </button>
@@ -1056,21 +1178,25 @@ async function loadPosts() {
         </button>
         <span>0</span>
       </div>
-    `;
 
-    container.appendChild(postEl);
-    const likeBtn = postEl.querySelector(".like-btn");
-    const unclickedIcon = likeBtn.querySelector(".like-unclicked-icon");
-    const clickedIcon = likeBtn.querySelector(".like-clicked-icon");
+      `;
 
-    if (isLiked) {
-      unclickedIcon.style.display = "none";
-      clickedIcon.style.display = "block";
-    } else {
-      clickedIcon.style.display = "none";
-      unclickedIcon.style.display = "block";
+      container.appendChild(postEl);
+      const likeBtn = postEl.querySelector(".like-btn");
+      const unclickedIcon = likeBtn.querySelector(".like-unclicked-icon");
+      const clickedIcon = likeBtn.querySelector(".like-clicked-icon");
+
+      if (isLiked) {
+        unclickedIcon.style.display = "none";
+        clickedIcon.style.display = "block";
+      } else {
+        clickedIcon.style.display = "none";
+        unclickedIcon.style.display = "block";
+      }
+    } catch (renderErr) {
+      console.error("post render error", post, renderErr);
     }
-  });
+  }
 }
 
 document.addEventListener("click", async (e) => {
@@ -1120,4 +1246,44 @@ document.addEventListener("click", async (e) => {
     btn.classList.add("clicked");
     if (likeCountEl) likeCountEl.textContent = String(currentCount + 1);
   }
+
+  if (e.target.closest(".comments-close-btn")) {
+    closeCommentsOverlay();
+    return;
+  }
+
+  const submitBtn = e.target.closest(".comment-submit-btn");
+  if (!submitBtn) return;
+
+  if (!activeCommentPostId) return;
+
+  const overlay = ensureCommentsOverlay();
+  const input = overlay.querySelector(".comment-input");
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (!currentUser) {
+    alert("Please log in to comment.");
+    return;
+  }
+
+  const { error } = await db
+    .from("comments")
+    .insert({
+      post_id: activeCommentPostId,
+      user_id: currentUser.id,
+      comment: text
+    });
+
+  if (error) {
+    console.error("Error saving comment:", error);
+    alert("Could not save comment.");
+    return;
+  }
+
+  await renderOverlayComments(activeCommentPostId);
+  await updatePostCommentCount(activeCommentPostId);
+  input.value = "";
 });
