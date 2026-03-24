@@ -1079,14 +1079,10 @@ async function loadPosts() {
     .from("posts")
     .select(`
       id,
+      user_id,
       image_url,
       caption,
-      created_at,
-      users (
-        username,
-        profile_image
-      ),
-      post_likes ( id )
+      created_at
     `)
     .order("created_at", { ascending: false });
 
@@ -1096,27 +1092,53 @@ async function loadPosts() {
     return;
   }
 
-  const commentCounts = await fetchCommentCounts(posts.map(post => post.id));
+  const postUserIds = [...new Set((posts || []).map(post => post.user_id).filter(Boolean))];
+  const postIds = (posts || []).map(post => post.id);
+
+  let profileMap = {};
+  if (postUserIds.length > 0) {
+    const { data: profiles, error: profileErr } = await db
+      .from("users")
+      .select("id, username, profile_image")
+      .in("id", postUserIds);
+
+    if (profileErr) {
+      console.error("Error loading post profiles:", profileErr);
+    } else if (profiles) {
+      profileMap = Object.fromEntries(profiles.map(profile => [profile.id, profile]));
+    }
+  }
+
+  let likeCountByPost = {};
+  if (postIds.length > 0) {
+    const { data: likeRows, error: likeRowsErr } = await db
+      .from("post_likes")
+      .select("post_id")
+      .in("post_id", postIds);
+
+    if (likeRowsErr) {
+      console.error("Error loading like counts:", likeRowsErr);
+    } else if (likeRows) {
+      likeCountByPost = likeRows.reduce((acc, row) => {
+        acc[row.post_id] = (acc[row.post_id] || 0) + 1;
+        return acc;
+      }, {});
+    }
+  }
 
   container.innerHTML = "";
 
-  for (const post of posts) {
-    try {
-      const username = post?.users?.username || "unknown";
-      const profileImage = post?.users?.profile_image || "media/pfp.png";
-      const isLiked = likedPostIds.has(post.id);
-      const mediaUrl = typeof post?.image_url === "string" ? post.image_url.trim() : "";
-      const mediaMarkup = !mediaUrl
-        ? `<div class="post-media-missing">Media unavailable</div>`
-        : mediaUrl.toLowerCase().endsWith(".mp4")
-          ? `<video class="post-video" src="${mediaUrl}" controls autoplay muted loop></video>`
-          : `<img src="${mediaUrl}" class="post-image" />`;
-      const commentCount = commentCounts.get(post.id) || 0;
-      console.log(isLiked)
-      let likeClass = "";
-      if (isLiked) {
-        likeClass = "clicked";
-      }
+  posts.forEach(post => {
+    const profile = profileMap[post.user_id];
+    const username = profile?.username || "unknown";
+    const profileImage = profile?.profile_image || "media/pfp.png";
+    const likeCount = likeCountByPost[post.id] || 0;
+    const isLiked = likedPostIds.has(post.id);
+    console.log(isLiked)
+    let likeClass = "";
+    if (isLiked) {
+      likeClass = "clicked";
+    }
 
       const postEl = document.createElement("div");
       postEl.className = "post";
@@ -1142,8 +1164,8 @@ async function loadPosts() {
           <img src="media/icons/heart-unclicked.svg" class="like-unclicked-icon" />
           <img src="media/icons/heart-clicked.svg" class="like-clicked-icon" />
         </button>
-        <span class="like-count">${post.post_likes?.length || 0}</span>
-        <button class="icon-btn comment-btn" data-post-id="${post.id}">
+        <span class="like-count">${likeCount}</span>
+        <button class="icon-btn comment-btn">
           <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.97 122.88"><title>instagram-comment</title><path d="M61.44,0a61.46,61.46,0,0,1,54.91,89l6.44,25.74a5.83,5.83,0,0,1-7.25,7L91.62,115A61.43,61.43,0,1,1,61.44,0ZM96.63,26.25a49.78,49.78,0,1,0-9,77.52A5.83,5.83,0,0,1,92.4,103L109,107.77l-4.5-18a5.86,5.86,0,0,1,.51-4.34,49.06,49.06,0,0,0,4.62-11.58,50,50,0,0,0-13-47.62Z"/></svg>
         </button>
         <span class="comment-count">${commentCount}</span>
@@ -1223,22 +1245,6 @@ document.addEventListener("click", async (e) => {
     clickedIcon.style.display = "block";
     btn.classList.add("clicked");
     if (likeCountEl) likeCountEl.textContent = String(currentCount + 1);
-  }
-});
-
-document.addEventListener("click", async (e) => {
-  const commentBtn = e.target.closest(".comment-btn");
-  if (!commentBtn) return;
-
-  const postId = parseInt(commentBtn.dataset.postId, 10);
-  if (!postId) return;
-  await openCommentsOverlay(postId);
-});
-
-document.addEventListener("click", async (e) => {
-  if (e.target.matches(".comments-overlay")) {
-    closeCommentsOverlay();
-    return;
   }
 
   if (e.target.closest(".comments-close-btn")) {
