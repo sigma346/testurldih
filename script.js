@@ -922,19 +922,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 let currentUser = null;
-const demoCommentsByPost = {};
 let activeCommentPostId = null;
 
-function getDemoComments(postId) {
-  if (!demoCommentsByPost[postId]) {
-    demoCommentsByPost[postId] = [
-      { username: "pixelpanda", text: "This is so clean 🔥" },
-      { username: "nightowl", text: "Love this post layout." },
-      { username: "mintyfresh", text: "Can’t wait for real comments next 👀" }
-    ];
+function escapeHtml(text = "") {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+async function fetchCommentCounts(postIds = []) {
+  if (!postIds.length) return new Map();
+
+  const { data, error } = await db
+    .from("comments")
+    .select("post_id")
+    .in("post_id", postIds);
+
+  if (error || !data) {
+    console.error("Error loading comment counts:", error);
+    return new Map();
   }
 
-  return demoCommentsByPost[postId];
+  const counts = new Map();
+  data.forEach(row => {
+    counts.set(row.post_id, (counts.get(row.post_id) || 0) + 1);
+  });
+
+  return counts;
+}
+
+async function updatePostCommentCount(postId) {
+  const { count, error } = await db
+    .from("comments")
+    .select("id", { count: "exact", head: true })
+    .eq("post_id", postId);
+
+  if (error) {
+    console.error("Error updating comment count:", error);
+    return;
+  }
+
+  const countEl = document.querySelector(`.comment-btn[data-post-id="${postId}"]`)?.parentElement?.querySelector(".comment-count");
+  if (countEl) {
+    countEl.textContent = String(count || 0);
+  }
 }
 
 function ensureCommentsOverlay() {
@@ -962,27 +996,51 @@ function ensureCommentsOverlay() {
   return overlay;
 }
 
-function renderOverlayComments(postId) {
+async function renderOverlayComments(postId) {
   const overlay = ensureCommentsOverlay();
   const commentsList = overlay.querySelector(".comments-list");
   if (!commentsList) return;
 
-  const comments = getDemoComments(postId);
+  commentsList.innerHTML = `<div class="comment-empty">Loading comments...</div>`;
+
+  const { data: comments, error } = await db
+    .from("comments")
+    .select(`
+      id,
+      comment,
+      created_at,
+      user_id,
+      users ( username )
+    `)
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error loading comments:", error);
+    commentsList.innerHTML = `<div class="comment-empty">Could not load comments.</div>`;
+    return;
+  }
+
+  if (!comments?.length) {
+    commentsList.innerHTML = `<div class="comment-empty">No comments yet.</div>`;
+    return;
+  }
+
   commentsList.innerHTML = comments
     .map(comment => `
       <div class="comment-item">
-        <span class="comment-user">@${comment.username}</span>
-        <span class="comment-text">${comment.text}</span>
+        <span class="comment-user">@${escapeHtml(Array.isArray(comment.users) ? (comment.users[0]?.username || "unknown") : (comment.users?.username || "unknown"))}</span>
+        <span class="comment-text">${escapeHtml(comment.comment || "")}</span>
       </div>
     `)
     .join("");
 }
 
-function openCommentsOverlay(postId) {
+async function openCommentsOverlay(postId) {
   activeCommentPostId = postId;
-  renderOverlayComments(postId);
   const overlay = ensureCommentsOverlay();
   overlay.classList.remove("hidden");
+  await renderOverlayComments(postId);
 }
 
 function closeCommentsOverlay() {
@@ -1038,6 +1096,8 @@ async function loadPosts() {
     return;
   }
 
+  const commentCounts = await fetchCommentCounts(posts.map(post => post.id));
+
   container.innerHTML = "";
 
   for (const post of posts) {
@@ -1051,7 +1111,7 @@ async function loadPosts() {
         : mediaUrl.toLowerCase().endsWith(".mp4")
           ? `<video class="post-video" src="${mediaUrl}" controls autoplay muted loop></video>`
           : `<img src="${mediaUrl}" class="post-image" />`;
-      const commentCount = getDemoComments(post.id).length;
+      const commentCount = commentCounts.get(post.id) || 0;
       console.log(isLiked)
       let likeClass = "";
       if (isLiked) {
@@ -1166,16 +1226,16 @@ document.addEventListener("click", async (e) => {
   }
 });
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   const commentBtn = e.target.closest(".comment-btn");
   if (!commentBtn) return;
 
   const postId = parseInt(commentBtn.dataset.postId, 10);
   if (!postId) return;
-  openCommentsOverlay(postId);
+  await openCommentsOverlay(postId);
 });
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   if (e.target.matches(".comments-overlay")) {
     closeCommentsOverlay();
     return;
@@ -1198,12 +1258,26 @@ document.addEventListener("click", (e) => {
   const text = input.value.trim();
   if (!text) return;
 
-  getDemoComments(activeCommentPostId).push({ username: "you", text });
-  renderOverlayComments(activeCommentPostId);
-  input.value = "";
-
-  const countEl = document.querySelector(`.comment-btn[data-post-id="${activeCommentPostId}"]`)?.parentElement?.querySelector(".comment-count");
-  if (countEl) {
-    countEl.textContent = String(getDemoComments(activeCommentPostId).length);
+  if (!currentUser) {
+    alert("Please log in to comment.");
+    return;
   }
+
+  const { error } = await db
+    .from("comments")
+    .insert({
+      post_id: activeCommentPostId,
+      user_id: currentUser.id,
+      comment: text
+    });
+
+  if (error) {
+    console.error("Error saving comment:", error);
+    alert("Could not save comment.");
+    return;
+  }
+
+  await renderOverlayComments(activeCommentPostId);
+  await updatePostCommentCount(activeCommentPostId);
+  input.value = "";
 });
